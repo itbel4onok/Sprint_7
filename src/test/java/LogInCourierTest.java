@@ -1,99 +1,114 @@
-import actions.*;
+import base.BaseCourierTest;
 import constants.CourierFields;
 import constants.ErrorMessage;
 import io.qameta.allure.Description;
 import io.qameta.allure.Feature;
+import io.qameta.allure.Step;
 import io.qameta.allure.junit4.DisplayName;
-import io.restassured.RestAssured;
 import io.restassured.response.Response;
-import org.junit.After;
-import org.junit.Before;
 import org.junit.Test;
-import resources.CourierCard;
 
+import static org.apache.http.HttpStatus.*;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.notNullValue;
 
 @Feature("Log in courier - POST /api/v1/courier/login")
-public class LogInCourierTest {
-    private CourierAction courierAction;
-    private CourierCard courierCard;
-    private boolean clearTestDataFlag = true;
-    private String initialValue = "";
-    private GenerateCourierData generateCourierData = new GenerateCourierData();
-
-    @Before
-    public void setUp() {
-        RestAssured.baseURI = "https://qa-scooter.praktikum-services.ru/";
-        generateCourierData.generateLoginPass();
-        courierCard = new CourierCard(
-                generateCourierData.getCourierLogin(),
-                generateCourierData.getCourierPassword());
-        courierAction = new CourierAction(courierCard);
-    }
-
+public class LogInCourierTest extends BaseCourierTest {
     @Test
     @DisplayName("Send correct POST request to /api/v1/courier/login")
     @Description("Happy path for /api/v1/courier/login")
     public void logInCourierHappyPathTest() {
-        courierAction.postRequestCreateCourierByCard();
-        Response response = courierAction.postRequestLogInByCard();
+        createNewTestCourier();
+        Response response = courierAction.postRequestLogIn(courierCard);
         response.then().assertThat().body("id", notNullValue())
-                .and().statusCode(200);
+                .and().statusCode(SC_OK);
+        deleteTestCourier();
     }
 
     @Test
     @DisplayName("Send POST request to /api/v1/courier/login with changed password")
     @Description("Impossible to log in with changed password")
     public void logInCourierChangedPasswordTest() {
-        courierAction.postRequestCreateCourierByCard();
-        initialValue = courierCard.getPassword();
+        createNewTestCourier();
+        String initialValue = courierCard.getPassword();
         courierCard.setPassword(CourierFields.RANDOM_PASSWORD);
-        Response response = courierAction.postRequestLogInByCard();
+        Response response = courierAction.postRequestLogIn(courierCard);
         response.then().assertThat().body("message", equalTo(ErrorMessage.NOT_FOUND_DATA_FOR_LOG_IN))
-                .and().statusCode(404);
+                .and().statusCode(SC_NOT_FOUND);
+        removeTestDataWithChangedPass(initialValue);
     }
 
     @Test
     @DisplayName("Send POST request to /api/v1/courier/login with incorrect/non-created courier data")
     @Description("Impossible to log in with incorrect/non-created couriers data")
     public void logInCourierIncorrectDataTest() {
-        Response response = courierAction.postRequestLogInByCard();
+        generateCourierData();
+        Response response = courierAction.postRequestLogIn(courierCard);
         response.then().assertThat().body("message", equalTo(ErrorMessage.NOT_FOUND_DATA_FOR_LOG_IN))
-                .and().statusCode(404);
-        clearTestDataFlag = false;
+                .and().statusCode(SC_NOT_FOUND);
     }
 
     @Test
-    @DisplayName("Send POST request to /api/v1/courier/login with only login")
+    @DisplayName("Send POST request to /api/v1/courier/login password null value")
     @Description("Impossible to log in without password")
-    public void logInCourierMissedPasswordFieldTest() {
-        courierAction.postRequestCreateCourierByCard();
-        String json = generateCourierData.generateCustomJson(CourierFields.LOGIN);
-        Response response = courierAction.postRequestLogInByJson(json);
+    public void logInCourierPassNullValueTest() {
+        createNewTestCourier();
+        String initialValue = courierCard.getPassword();
+        courierCard.setPassword(CourierFields.NULL_VALUE);
+        Response response = courierAction.postRequestLogIn(courierCard);
         response.then().assertThat().body(equalTo(ErrorMessage.SERVICE_UNAVAILABLE))
-                .and().statusCode(504);
+                .and().statusCode(SC_GATEWAY_TIMEOUT);
+        removeTestDataWithChangedPass(initialValue);
     }
 
     @Test
-    @DisplayName("Send POST request to /api/v1/courier/login with only password")
-    @Description("Impossible to log in without login")
-    public void logInCourierMissedLoginFieldTest() {
-        courierAction.postRequestCreateCourierByCard();
-        String json = generateCourierData.generateCustomJson(CourierFields.PASSWORD);
-        Response response = courierAction.postRequestLogInByJson(json);
+    @DisplayName("Send POST request to /api/v1/courier/login password empty value")
+    @Description("Impossible to log in without password")
+    public void logInCourierPassEmptyValueTest() {
+        createNewTestCourier();
+        String initialValue = courierCard.getPassword();
+        courierCard.setPassword(CourierFields.EMPTY_VALUE);
+        Response response = courierAction.postRequestLogIn(courierCard);
         response.then().assertThat().body("message", equalTo(ErrorMessage.NOT_ENOUGH_DATA_FOR_LOG_IN))
-                .and().statusCode(400);
-        courierAction.postRequestLogInByCard();
+                .and().statusCode(SC_BAD_REQUEST);
+        removeTestDataWithChangedPass(initialValue);
     }
 
-    @After
-    public void removeTestData() {
-        if(!(initialValue.isEmpty())) {
-            courierCard.setPassword(initialValue);
-        }
-        if(clearTestDataFlag) {
-            courierAction.deleteRequestRemoveCourier();
-        }
+    @Test
+    @DisplayName("Send POST request to /api/v1/courier/login login null value")
+    @Description("Impossible to log in without login")
+    public void logInCourierLoginNullValueTest() {
+        createNewTestCourier();
+        String initialValue = courierCard.getLogin();
+        courierCard.setLogin(CourierFields.NULL_VALUE);
+        Response response = courierAction.postRequestLogIn(courierCard);
+        response.then().assertThat().body("message", equalTo(ErrorMessage.NOT_ENOUGH_DATA_FOR_LOG_IN))
+                .and().statusCode(SC_BAD_REQUEST);
+        removeTestDataWithChangedLogin(initialValue);
+    }
+
+    @Test
+    @DisplayName("Send POST request to /api/v1/courier/login login empty value")
+    @Description("Impossible to log in without login")
+    public void logInCourierLoginEmptyValueTest() {
+        createNewTestCourier();
+        String initialValue = courierCard.getLogin();
+        courierCard.setLogin(CourierFields.EMPTY_VALUE);
+        Response response = courierAction.postRequestLogIn(courierCard);
+        response.then().assertThat().body("message", equalTo(ErrorMessage.NOT_ENOUGH_DATA_FOR_LOG_IN))
+                .and().statusCode(SC_BAD_REQUEST);
+        removeTestDataWithChangedLogin(initialValue);
+    }
+
+    @Step("Remove created test-data")
+    public void removeTestDataWithChangedPass(String initialValue) {
+        courierCard.setPassword(initialValue);
+        deleteTestCourier();
+    }
+
+    @Step("Remove created test-data")
+    public void removeTestDataWithChangedLogin(String initialValue) {
+        courierCard.setLogin(initialValue);
+        deleteTestCourier();
     }
 }

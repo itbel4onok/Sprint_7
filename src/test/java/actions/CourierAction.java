@@ -1,5 +1,6 @@
 package actions;
 
+import constants.PathApi;
 import io.qameta.allure.Step;
 import io.restassured.response.Response;
 import resources.CourierCard;
@@ -7,61 +8,35 @@ import resources.CourierId;
 
 import static io.restassured.RestAssured.given;
 
-public class CourierAction {
-    private CourierCard courierCard;
-    public CourierAction(CourierCard courierCard){
-        this.courierCard = courierCard;
-    }
+public class CourierAction extends BaseApi {
     public CourierAction(){
     }
 
     // Create courier part
-    private Response postRequestCreateCourier(Object obj) {
-        return given()
-                .header("Content-type", "application/json")
+    public Response postRequestCreateCourier(Object obj) {
+        return given(RequestSpecification())
                 .body(obj)
                 .when()
-                .post("/api/v1/courier");
-    }
-
-    @Step("Create courier by CourierCard, POST request - /api/v1/courier")
-    public Response postRequestCreateCourierByCard() {
-        return postRequestCreateCourier(courierCard);
-    }
-
-    @Step("Create courier by Json, POST request - /api/v1/courier")
-    public Response postRequestCreateCourierByJson(String json) {
-        return postRequestCreateCourier(json);
+                .post(PathApi.COURIER_BASE_URL);
     }
 
     // Log-in courier part
-    private Response postRequestLogIn(Object obj){
-        return given()
-                        .header("Content-type", "application/json")
+    public Response postRequestLogIn(Object obj){
+        return given(RequestSpecification())
                         .body(obj)
                         .when()
-                        .post("/api/v1/courier/login");
-    }
-
-    @Step("Log in by CourierCard, POST request - /api/v1/courier/login")
-    public Response postRequestLogInByCard(){
-        return postRequestLogIn(courierCard);
-    }
-
-    @Step("Log in by Json, POST request - /api/v1/courier/login")
-    public Response postRequestLogInByJson(String json){
-        return postRequestLogIn(json);
+                        .post(PathApi.COURIER_LOGIN);
     }
 
     // Remove courier part
     @Step("Remove courier")
-    public Response deleteRequestRemoveCourier(){
-        return deleteRequestRemoveCourierById(getCourierId());
+    public Response deleteRequestRemoveCourier(CourierCard courierCard){
+        return deleteRequestRemoveCourierById(getCourierId(courierCard));
     }
 
     @Step("Find out Courier ID by Login request")
-    public String getCourierId(){
-        Response response = postRequestLogInByCard();
+    public String getCourierId(CourierCard courierCard){
+        Response response = postRequestLogIn(courierCard);
         CourierId courierId = response.as(CourierId.class);
         return courierId.getId();
     }
@@ -69,8 +44,13 @@ public class CourierAction {
     @Step("Remove courier, DELETE request - /api/v1/courier/{:id}")
     public Response deleteRequestRemoveCourierById(String courierID){
         int courierId = Integer.parseInt(courierID);
-        return given()
-                        .header("Content-type", "application/json")
-                        .delete("/api/v1/courier/{:id}", courierId);
+        return given(RequestSpecification())
+                        .delete(PathApi.COURIER_BASE_URL +"/{:id}", courierId);
+    }
+
+    @Step("Remove courier without ID, DELETE request - /api/v1/courier/{:id}")
+    public Response deleteRequestRemoveCourierWithoutId(){
+        return given(RequestSpecification())
+                .delete(PathApi.COURIER_BASE_URL + "/:id");
     }
 }

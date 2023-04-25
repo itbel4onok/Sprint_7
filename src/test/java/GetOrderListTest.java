@@ -1,109 +1,74 @@
-import actions.CourierAction;
-import actions.GenerateCourierData;
-import actions.GenerateOrderParamValue;
+import base.BaseCourierTest;
+import base.BaseOrderTest;
 import constants.OrderListParams;
 import io.qameta.allure.Feature;
 import io.qameta.allure.junit4.DisplayName;
-import io.restassured.RestAssured;
 import io.restassured.response.Response;
-import org.junit.Before;
 import org.junit.Test;
-import resources.CourierCard;
 
-import static io.restassured.RestAssured.given;
+import static org.apache.http.HttpStatus.SC_OK;
 import static org.hamcrest.Matchers.notNullValue;
 
 @Feature("Get order list - GET /api/v1/orders")
-public class GetOrderListTest {
-    private GenerateOrderParamValue generateOrderParamValue = new GenerateOrderParamValue();
-    private CourierAction courierAction;
-
-    @Before
-    public void setUp() {
-        RestAssured.baseURI = "https://qa-scooter.praktikum-services.ru/";
-    }
+public class GetOrderListTest extends BaseOrderTest {
+    private BaseCourierTest baseCourierTest = new BaseCourierTest();
 
     @Test
     @DisplayName("Get order list without params")
     public void getOrderListNoParamTest() {
-        Response response = given()
-                .header("Content-type", "application/json")
-                .get("/api/v1/orders");
+        Response response = orderAction.getRequestGetOrderList();
         response.then().assertThat().body("orders", notNullValue())
-                .and().statusCode(200);
+                .and().statusCode(SC_OK);
     }
 
     @Test
     @DisplayName("Get order list with params: Limit, Page")
     public void getOrderListParamLimitPageTest() {
-        String paramLimitValue = generateOrderParamValue.GenerateParamValue(OrderListParams.LIMIT);
-        String paramPageValue = generateOrderParamValue.GenerateParamValue(OrderListParams.PAGE);
-        Response response = given()
-                .header("Content-type", "application/json")
-                .queryParam(OrderListParams.LIMIT, paramLimitValue)
-                .queryParam(OrderListParams.PAGE, paramPageValue)
-                .get("/api/v1/orders");
+        Response response = orderAction.getRequestGetOrderList(
+                OrderListParams.LIMIT, generateOrderValue.GenerateParamValue(OrderListParams.LIMIT),
+                OrderListParams.PAGE, generateOrderValue.GenerateParamValue(OrderListParams.PAGE));
         response.then().assertThat().body("orders", notNullValue())
-                .and().statusCode(200);
+                .and().statusCode(SC_OK);
     }
 
     @Test
     @DisplayName("Get order list with params: Limit, Page, Nearest Station")
     public void getOrderListParamLimitPageStationTest() {
-        String paramLimitValue = generateOrderParamValue.GenerateParamValue(OrderListParams.LIMIT);
-        String paramPageValue = generateOrderParamValue.GenerateParamValue(OrderListParams.PAGE);
-        String paramStationValue = generateOrderParamValue.GenerateParamValue(OrderListParams.NEAREST_STATION);
-        Response response = given()
-                .header("Content-type", "application/json")
-                .queryParam(OrderListParams.LIMIT, paramLimitValue)
-                .queryParam(OrderListParams.PAGE, paramPageValue)
-                .queryParam(OrderListParams.NEAREST_STATION, paramStationValue)
-                .get("/api/v1/orders");
+        Response response = orderAction.getRequestGetOrderList(
+                OrderListParams.LIMIT, generateOrderValue.GenerateParamValue(OrderListParams.LIMIT),
+                OrderListParams.PAGE, generateOrderValue.GenerateParamValue(OrderListParams.PAGE),
+                OrderListParams.NEAREST_STATION, generateOrderValue.GenerateParamValue(OrderListParams.NEAREST_STATION));
         response.then().assertThat().body("orders", notNullValue())
-                .and().statusCode(200);
+                .and().statusCode(SC_OK);
     }
 
 
     @Test
     @DisplayName("Get order list with params: Courier ID")
     public void getOrderListParamCourierIdTest() {
-        String courierId = getCourierId();
-        Response response = given()
-                .header("Content-type", "application/json")
-                .queryParam(OrderListParams.COURIER_ID, courierId)
-                .get("/api/v1/orders");
+        Response response = orderAction.getRequestGetOrderList(OrderListParams.COURIER_ID, getNewTestCourierId());
         response.then().assertThat().body("orders", notNullValue())
-                .and().statusCode(200);
-        removeGeneratedCourier(courierId);
+                .and().statusCode(SC_OK);
+        deleteTestCourier();
     }
 
     @Test
     @DisplayName("Get order list with params: Courier ID, nearestStation")
     public void getOrderListParamCourierIdStationTest() {
-        String courierId = getCourierId();
-        String paramStationValue = generateOrderParamValue.GenerateParamValue(OrderListParams.NEAREST_STATION);
-        Response response = given()
-                .header("Content-type", "application/json")
-                .queryParam(OrderListParams.COURIER_ID, courierId)
-                .queryParam(OrderListParams.NEAREST_STATION, paramStationValue)
-                .get("/api/v1/orders");
+        Response response = orderAction.getRequestGetOrderList(
+                OrderListParams.COURIER_ID, getNewTestCourierId(),
+                OrderListParams.NEAREST_STATION, generateOrderValue.GenerateParamValue(OrderListParams.NEAREST_STATION));
         response.then().assertThat().body("orders", notNullValue())
-                .and().statusCode(200);
-        removeGeneratedCourier(courierId);
+                .and().statusCode(SC_OK);
+        deleteTestCourier();
     }
 
-    private String getCourierId(){
-        GenerateCourierData generateCourierData = new GenerateCourierData();
-        generateCourierData.generateLoginPass();
-        CourierCard courierCard = new CourierCard(
-                generateCourierData.getCourierLogin(),
-                generateCourierData.getCourierPassword());
-        courierAction = new CourierAction(courierCard);
-        courierAction.postRequestCreateCourierByCard();
-        return courierAction.getCourierId();
+    private String getNewTestCourierId(){
+        baseCourierTest.createNewTestCourier();
+        return baseCourierTest.courierAction.getCourierId(baseCourierTest.courierCard);
     }
 
-    private void removeGeneratedCourier(String courierId){
-        courierAction.deleteRequestRemoveCourierById(courierId);
+    private void deleteTestCourier(){
+        baseCourierTest.deleteTestCourier();
     }
 }

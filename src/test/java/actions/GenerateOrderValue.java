@@ -4,7 +4,7 @@ import constants.OrderListParams;
 
 import java.util.Random;
 
-public class GenerateOrderParamValue {
+public class GenerateOrderValue {
     Random random = new Random();
     public String GenerateParamValue(String param){
         switch (param) {

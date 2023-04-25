@@ -1,106 +1,94 @@
-import actions.CourierAction;
-import actions.GenerateCourierData;
+import base.BaseCourierTest;
 import constants.CourierFields;
 import constants.ErrorMessage;
 import io.qameta.allure.Description;
 import io.qameta.allure.Feature;
 import io.qameta.allure.junit4.DisplayName;
-import io.restassured.RestAssured;
 import io.restassured.response.Response;
-import org.junit.After;
-import org.junit.Before;
 import org.junit.Test;
-import resources.CourierCard;
 
+import static org.apache.http.HttpStatus.*;
 import static org.hamcrest.Matchers.equalTo;
 
 @Feature("Create courier - POST /api/v1/courier")
-public class CreateCourierTest {
-    private GenerateCourierData generateCourierData;
-    private boolean clearTestDataFlag = true;
-
-    @Before
-    public void setUp() {
-        RestAssured.baseURI = "https://qa-scooter.praktikum-services.ru/";
-        generateCourierData = new GenerateCourierData();
-        generateCourierData.generateLoginPassName();
-    }
-
+public class CreateCourierTest extends BaseCourierTest {
     @Test
     @DisplayName("Send correct POST request to /api/v1/courier")
     @Description("Happy path for /api/v1/courier")
     public void createCourierHappyPathTest() {
-        CourierAction courierAction = new CourierAction(generateCourierData());
-        Response response = courierAction.postRequestCreateCourierByCard();
+        generateCourierData();
+        Response response = courierAction.postRequestCreateCourier(courierCard);
         response.then().assertThat().body("ok", equalTo(true))
-                .and().statusCode(201);
+                .and().statusCode(SC_CREATED);
+        deleteTestCourier();
     }
 
     @Test
     @DisplayName("Send POST request to /api/v1/courier twice")
     @Description("Impossible to create the same Couriers twice")
     public void createCourierTwiceTest(){
-        CourierAction courierAction = new CourierAction(generateCourierData());
-        courierAction.postRequestCreateCourierByCard();
-        Response response = courierAction.postRequestCreateCourierByCard();
+        generateCourierData();
+        courierAction.postRequestCreateCourier(courierCard);
+        Response response = courierAction.postRequestCreateCourier(courierCard);
         response.then().assertThat().body("message", equalTo(ErrorMessage.EXIST_LOGIN))
-                .and().statusCode(409);
+                .and().statusCode(SC_CONFLICT);
+        deleteTestCourier();
     }
 
     @Test
-    @DisplayName("Send POST request to /api/v1/courier without login")
-    @Description("Impossible to create courier without login")
-    public void createCourierMissedLoginFieldTest(){
-        CourierAction courierAction = new CourierAction();
-        String json = generateCourierData.generateCustomJson(CourierFields.PASSWORD, CourierFields.FIRST_NAME);
-        Response response = courierAction.postRequestCreateCourierByJson(json);
+    @DisplayName("Send POST request to /api/v1/courier with login null value")
+    @Description("Impossible to create courier without login value")
+    public void createCourierLoginNullValueTest(){
+        generateCustomCourierData(CourierFields.PASSWORD, CourierFields.FIRST_NAME);
+        Response response = courierAction.postRequestCreateCourier(courierCard);
         response.then().assertThat().body("message",
                         equalTo(ErrorMessage.NOT_ENOUGH_DATA_FOR_CREATE))
-               .and().statusCode(400);
-        clearTestDataFlag = false;
+               .and().statusCode(SC_BAD_REQUEST);
     }
 
     @Test
-    @DisplayName("Send POST request to /api/v1/courier without password")
+    @DisplayName("Send POST request to /api/v1/courier with login empty value")
+    @Description("Impossible to create courier without login value")
+    public void createCourierLoginEmptyValueTest() {
+        generateCourierData();
+        courierCard.setLogin("");
+        Response response = courierAction.postRequestCreateCourier(courierCard);
+        response.then().assertThat().body("message",
+                        equalTo(ErrorMessage.NOT_ENOUGH_DATA_FOR_CREATE))
+                .and().statusCode(SC_BAD_REQUEST);
+    }
+
+    @Test
+    @DisplayName("Send POST request to /api/v1/courier with password null value")
     @Description("Impossible to create courier without password")
-    public void createCourierMissedPasswordFieldTest(){
-        CourierAction courierAction = new CourierAction();
-        String json = generateCourierData.generateCustomJson(CourierFields.LOGIN, CourierFields.FIRST_NAME);
-        Response response = courierAction.postRequestCreateCourierByJson(json);
+    public void createCourierPassNullValueTest(){
+        generateCustomCourierData(CourierFields.LOGIN, CourierFields.FIRST_NAME);
+        Response response = courierAction.postRequestCreateCourier(courierCard);
         response.then().assertThat().body("message",
                         equalTo(ErrorMessage.NOT_ENOUGH_DATA_FOR_CREATE))
-                .and().statusCode(400);
-        clearTestDataFlag = false;
+                .and().statusCode(SC_BAD_REQUEST);
     }
 
     @Test
-    @DisplayName("Send POST request to /api/v1/courier without firstName")
+    @DisplayName("Send POST request to /api/v1/courier with password null value")
+    @Description("Impossible to create courier without password")
+    public void createCourierPassEmptyValueTest() {
+        generateCourierData();
+        courierCard.setPassword("");
+        Response response = courierAction.postRequestCreateCourier(courierCard);
+        response.then().assertThat().body("message",
+                        equalTo(ErrorMessage.NOT_ENOUGH_DATA_FOR_CREATE))
+                .and().statusCode(SC_BAD_REQUEST);
+    }
+
+    @Test
+    @DisplayName("Send POST request to /api/v1/courier with firstName null value")
     @Description("Possible to create courier without firstName")
-    public void createCourierMissedNameFieldTest(){
-        CourierAction courierAction = new CourierAction();
-        String json = generateCourierData.generateCustomJson(CourierFields.LOGIN, CourierFields.PASSWORD);
-        Response response = courierAction.postRequestCreateCourierByJson(json);
+    public void createCourierNameNullValueTest(){
+        generateCustomCourierData(CourierFields.LOGIN, CourierFields.PASSWORD);
+        Response response = courierAction.postRequestCreateCourier(courierCard);
         response.then().assertThat().body("ok", equalTo(true))
-                    .and().statusCode(201);
-        clearTestDataFlag = false;
-    }
-
-    @After
-    public void removeTestData() {
-        if(clearTestDataFlag) {
-            CourierCard courierCard = new CourierCard(
-                    generateCourierData.getCourierLogin(),
-                    generateCourierData.getCourierPassword());
-            CourierAction courierAction = new CourierAction(courierCard);
-            courierAction.deleteRequestRemoveCourier();
-        }
-    }
-
-    public CourierCard generateCourierData()
-    {
-        return new CourierCard(
-                generateCourierData.getCourierLogin(),
-                generateCourierData.getCourierPassword(),
-                generateCourierData.getCourierFirstName());
+                    .and().statusCode(SC_CREATED);
+        deleteTestCourier();
     }
 }
